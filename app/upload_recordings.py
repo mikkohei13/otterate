@@ -48,7 +48,7 @@ def setup_database():
         print(f"Error setting up database: {e}")
 
 # Function to upload data from CSV to MariaDB
-def upload_data(limit=10):
+def upload_data(limit=1000):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()

@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-def extract_sample(input_file, output_file, n_rows=100):
+def extract_sample(input_file, output_file, n_rows=1000):
     """Extract first n rows from a CSV file and save to a new file."""
     print(f"Processing {input_file}...")
     df = pd.read_csv(input_file, nrows=n_rows)
