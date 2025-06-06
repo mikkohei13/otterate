@@ -1,0 +1,16 @@
+{
+    "name": "My App DevContainer",
+    "dockerComposeFile": ["../docker-compose.yml"],
+    "service": "app",               // The service in docker-compose.yml that runs your code
+    "workspaceFolder": "./app",    // Where your code lives inside the container
+    "shutdownAction": "stopCompose",// Stops the containers when you close Cursor
+    "extensions": [
+      "ms-azuretools.vscode-docker",  // Ensures Docker extension is available inside the container
+      "ms-python.python"             // (Example) e.g. Python extension if you’re using Python
+    ],
+    "settings": {
+      "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "remoteUser": "vscode"           // The Linux user inside your container; adjust if different
+  }
+  
