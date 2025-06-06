@@ -1,12 +1,15 @@
-import pandas as pd
+import polars as pl
 import os
 
-def extract_sample(input_file, output_file, n_rows=1000):
+def extract_sample(input_file, output_file, n_rows=10000):
     """Extract first n rows from a CSV file and save to a new file."""
+
     print(f"Processing {input_file}...")
-    df = pd.read_csv(input_file, nrows=n_rows)
-    df.to_csv(output_file, index=False)
+    df = pl.read_csv(input_file)
+    df = df.sample(n=n_rows)
+    df.write_csv(output_file)
     print(f"Saved {n_rows} rows to {output_file}")
+
 
 def main():
     data_dir = "/data"
