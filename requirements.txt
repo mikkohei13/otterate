@@ -3,3 +3,4 @@ requests==2.32.*
 matplotlib==3.10.*
 pandas==2.3.*
 pyarrow==20.0.*
+geopandas==1.0.*
