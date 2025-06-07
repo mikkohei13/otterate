@@ -7,11 +7,13 @@ def process_recordings_data():
     pl.Config.set_tbl_cols(None)            # Disable column truncation
     pl.Config.set_tbl_rows(100)             # Show up to 100 rows
 
+    handle_samples = True
+
     # Define input and output paths
     data_dir = Path("/data")
-    input_recordings_file = data_dir / "recordings_anon.csv"
-    input_identifications_file = data_dir / "species_ids.csv"
-    output_file = data_dir / "observations.parquet"
+    input_recordings_file = data_dir / "recordings_anon_sample.csv" if handle_samples else data_dir / "recordings_anon.csv"
+    input_identifications_file = data_dir / "species_ids_sample.csv" if handle_samples else data_dir / "species_ids.csv"
+    output_file = data_dir / "observations_sample.parquet" if handle_samples else data_dir / "observations.parquet"
 
     # Load FinBIF species list, which is in the same directory as this script
     finbif_species_file = Path(__file__).parent / "species_list.csv"
@@ -26,18 +28,13 @@ def process_recordings_data():
         recordings_df = pl.scan_csv(input_recordings_file)
 
         # Remove unneeded columns
-        recordings_df = recordings_df.drop(["real_obs"])
+        recordings_df = recordings_df.drop(["real_obs", "len", "dur"])
 
         # Add columns for year, month and day, by splitting date column, as integers
         recordings_df = recordings_df.with_columns([
             pl.col("date").str.split("-").list.get(0).cast(pl.Int32).alias("year"),
             pl.col("date").str.split("-").list.get(1).cast(pl.Int32).alias("month"),
             pl.col("date").str.split("-").list.get(2).cast(pl.Int32).alias("day")
-        ])
-        
-        # Convert 'len' to float and fill nulls
-        recordings_df = recordings_df.with_columns([
-            pl.col("len").fill_null(0.0).cast(pl.Float32)
         ])
 
         # 2) Species IDs - using lazy evaluation
@@ -52,17 +49,35 @@ def process_recordings_data():
         print("Joining datasets...")
         joined_df = recordings_df.join(species_ids_df, on="rec_id", how="right")
 
-        # 4) Add column for FinBIF scientific name and identifier, by matching species column to species column, then picking finbif_species and identifier values
-        joined_df = joined_df.with_columns(
-            pl.col("species").map_elements(lambda x: finbif_species_df.filter(pl.col("species") == x)["finbif_species"].first(), return_dtype=pl.Utf8).alias("finbif_species"),
-            pl.col("species").map_elements(lambda x: finbif_species_df.filter(pl.col("species") == x)["identifier"].first(), return_dtype=pl.Utf8).alias("identifier")
+        # 4) Add FinBIF species information using a join instead of map_elements
+        print("Adding FinBIF species information...")
+        # Convert finbif_species_df to lazy for better performance
+        finbif_species_lazy = pl.LazyFrame(finbif_species_df)
+        # Join with the species information
+        joined_df = joined_df.join(
+            finbif_species_lazy.select(["species", "finbif_species", "identifier"]),
+            on="species",
+            how="left"
         )
+
+        # Recast year, month, and day to ensure they're Int32 before writing
+        # Doesn't work, values are still floats, but they are integers in the data
+        #joined_df = joined_df.with_columns([
+        #    pl.col("year").cast(pl.Int32),
+        #    pl.col("month").cast(pl.Int32),
+        #    pl.col("day").cast(pl.Int32)
+        #])
+
+        joined_df = joined_df.with_columns([
+            pl.col("year").cast(pl.Int32),
+            pl.col("month").cast(pl.Int32),
+            pl.col("day").cast(pl.Int32)
+        ])
 
         # Materialize and save in chunks
         print("Saving to parquet...")
         joined_df.sink_parquet(output_file)
 
-        
         end_time = time.time()
         print(f"Successfully processed data and saved to {output_file}")
         print(f"Processing took {end_time - start_time:.2f} seconds")
