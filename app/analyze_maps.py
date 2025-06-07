@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Point
 from pathlib import Path
 import re
+import gc
 
 input_file = Path("/data/observations.parquet")
 
@@ -42,37 +43,67 @@ identifier', String, identifier of the bird species from FinBIF
 world = gpd.read_file("./ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
 finland = world[world.NAME == "Finland"]
 
-# Read only columns user_anon, finbif_species, month
-df = pd.read_parquet(input_file, columns=["user_anon", "finbif_species", "lat", "lon"])
+# Create output directory if it doesn't exist
+output_dir = Path("/data/output")
+output_dir.mkdir(parents=True, exist_ok=True)
 
-# Filter out rows where coordinates are outside Finland
+# Define Finland boundaries
 lat_min = 59.719384
 lat_max = 70.095071
 lon_min = 19.032174
 lon_max = 31.587662
 
-# Filter out rows where coordinates are outside Finland
-df = df[(df['lat'] >= lat_min) & (df['lat'] <= lat_max) & (df['lon'] >= lon_min) & (df['lon'] <= lon_max)]
+# Get unique species list first
+species_list = pd.read_parquet(input_file, columns=["finbif_species"])["finbif_species"].unique()
 
-# Filter out rows where finbif_species is not "Oriolus oriolus"
-# Select only species "Oriolus oriolus"
-df = df[df["finbif_species"] == "Oriolus oriolus"]
-
-# Remove rows where lat or lon is empty
-df = df.dropna(subset=["user_anon", "lat", "lon"])
-
-# Convert lat and lon to float
-df["lat"] = df["lat"].astype(float)
-df["lon"] = df["lon"].astype(float)
-
-# Convert to GeoDataFrame
-geometry = [Point(xy) for xy in zip(df['lon'], df['lat'])]
-gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
-
-# Create a map of Finland with the points
-output_file = Path("/data/output/map.png")
-ax = finland.plot(color='white', edgecolor='black')
-gdf.plot(ax=ax, markersize=2, color='red')
-plt.axis('off')
-plt.savefig(output_file, bbox_inches='tight', dpi=300)
-plt.close()
+# Process each species
+for species in species_list:
+    # Read only data for current species
+    species_df = pd.read_parquet(
+        input_file,
+        columns=["user_anon", "finbif_species", "lat", "lon", "month"],
+        filters=[("finbif_species", "==", species)]
+    )
+    
+    # Filter for summer months
+    species_df = species_df[species_df['month'].isin([5, 6, 7])]
+    
+    # Filter coordinates
+    species_df = species_df[
+        (species_df['lat'] >= lat_min) & 
+        (species_df['lat'] <= lat_max) & 
+        (species_df['lon'] >= lon_min) & 
+        (species_df['lon'] <= lon_max)
+    ]
+    
+    # Skip if no observations for this species
+    if len(species_df) == 0:
+        continue
+    
+    # Remove rows where lat or lon is empty
+    species_df = species_df.dropna(subset=["user_anon", "lat", "lon"])
+    
+    # Convert lat and lon to float
+    species_df["lat"] = species_df["lat"].astype(float)
+    species_df["lon"] = species_df["lon"].astype(float)
+    
+    # Convert to GeoDataFrame
+    geometry = [Point(xy) for xy in zip(species_df['lon'], species_df['lat'])]
+    gdf = gpd.GeoDataFrame(species_df, geometry=geometry, crs="EPSG:4326")
+    
+    # Create a map of Finland with the points
+    plt.figure(figsize=(10, 10))
+    ax = finland.plot(color='white', edgecolor='black')
+    gdf.plot(ax=ax, markersize=2, color='red')
+    plt.title(f"Observations of {species}")
+    plt.axis('off')
+    
+    # Create filename from species name (replace spaces and special characters)
+    safe_species_name = re.sub(r'[^a-zA-Z0-9]', '_', species)
+    output_file = output_dir / f"map_{safe_species_name}.png"
+    plt.savefig(output_file, bbox_inches='tight', dpi=300)
+    plt.close('all')  # Close all figures
+    
+    # Clear memory
+    del species_df, gdf, geometry
+    gc.collect()
