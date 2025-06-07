@@ -10,8 +10,12 @@ def process_recordings_data():
     # Define input and output paths
     data_dir = Path("/data")
     input_recordings_file = data_dir / "recordings_anon.csv"
-    input_identifications_file = data_dir / "identifications.csv"
+    input_identifications_file = data_dir / "species_ids.csv"
     output_file = data_dir / "observations.parquet"
+
+    # Load FinBIF species list, which is in the same directory as this script
+    finbif_species_file = Path(__file__).parent / "species_list.csv"
+    finbif_species_df = pl.read_csv(finbif_species_file, separator=";")
 
     try:
         start_time = time.time()
@@ -20,6 +24,16 @@ def process_recordings_data():
         # 1) Recordings - using lazy evaluation
         print("Processing recordings data...")
         recordings_df = pl.scan_csv(input_recordings_file)
+
+        # Remove unneeded columns
+        recordings_df = recordings_df.drop(["real_obs"])
+
+        # Add columns for year, month and day, by splitting date column, as integers
+        recordings_df = recordings_df.with_columns([
+            pl.col("date").str.split("-").list.get(0).cast(pl.Int32).alias("year"),
+            pl.col("date").str.split("-").list.get(1).cast(pl.Int32).alias("month"),
+            pl.col("date").str.split("-").list.get(2).cast(pl.Int32).alias("day")
+        ])
         
         # Convert 'len' to float and fill nulls
         recordings_df = recordings_df.with_columns([
@@ -38,9 +52,16 @@ def process_recordings_data():
         print("Joining datasets...")
         joined_df = recordings_df.join(species_ids_df, on="rec_id", how="right")
 
+        # 4) Add column for FinBIF scientific name and identifier, by matching species column to species column, then picking finbif_species and identifier values
+        joined_df = joined_df.with_columns(
+            pl.col("species").map_elements(lambda x: finbif_species_df.filter(pl.col("species") == x)["finbif_species"].first(), return_dtype=pl.Utf8).alias("finbif_species"),
+            pl.col("species").map_elements(lambda x: finbif_species_df.filter(pl.col("species") == x)["identifier"].first(), return_dtype=pl.Utf8).alias("identifier")
+        )
+
         # Materialize and save in chunks
         print("Saving to parquet...")
         joined_df.sink_parquet(output_file)
+
         
         end_time = time.time()
         print(f"Successfully processed data and saved to {output_file}")

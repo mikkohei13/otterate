@@ -1,12 +1,18 @@
 import polars as pl
 import os
 
-def extract_sample(input_file, output_file, n_rows=10000):
-    """Extract first n rows from a CSV file and save to a new file."""
+def extract_sample(input_file, output_file, n_rows=100000):
+    """Extract n rows from a CSV file and save to a new file."""
+    random_rows = False
 
     print(f"Processing {input_file}...")
     df = pl.read_csv(input_file)
-    df = df.sample(n=n_rows)
+
+    if random_rows:
+        df = df.sample(n=n_rows)
+    else:
+        df = df.head(n_rows)
+
     df.write_csv(output_file)
     print(f"Saved {n_rows} rows to {output_file}")
 
