@@ -3,7 +3,7 @@
 import polars as pl
 from pathlib import Path
 import matplotlib.pyplot as plt
-import pandas as pd
+#import pandas as pd
 
 input_file = Path("/data/observations_sample.parquet")
 
@@ -39,6 +39,11 @@ finbif_species', String, scientific name of the bird species from FinBIF
 identifier', String, identifier of the bird species from FinBIF
 '''
 
+# Save as csv for debugging purposes
+df.write_csv("/data/output/observations_sample.csv")
+exit()
+
+'''
 # Find observations Of a single species, and save them to csv
 df_species = df.filter(pl.col("finbif_species") == "Parus major")
 df_species.write_csv("/data/output/observations_species.csv")
@@ -65,5 +70,5 @@ plt.close()
 # Show how many rows there are per "user_anon", but only for top 10 users, print to csv
 #print(df.group_by("user_anon").count().sort("count", descending=True).head(10))
 
-
+'''
 
