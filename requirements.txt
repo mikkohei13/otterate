@@ -1,6 +1,6 @@
 polars==1.30.*
 requests==2.32.*
-matplotlib==3.10.*
+matplotlib==3.9.*
 pandas==2.3.*
 pyarrow==20.0.*
 geopandas==1.0.*
