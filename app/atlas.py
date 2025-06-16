@@ -71,16 +71,18 @@ for i, row in enumerate(squares_df.iter_rows(named=True)):
 
     # Note: the Parquet file is very large, so code needs to be optimized for reading only what is needed
     # Read data of this specific square, and where month is 3...8 (March to August)
-    observations_df = pl.read_parquet(observation_data_file, columns=["n", "e", "lat", "lon", "month", "prediction", "finbif_species", "identifier"])
+#    observations_df = pl.read_parquet(observation_data_file, columns=["n", "e", "lat", "lon", "date", "time", "month", "prediction", "finbif_species", "identifier", "rec_id", "result_id"])
+    observations_df = pl.read_parquet(observation_data_file, columns=["n", "e", "month", "prediction", "finbif_species", "identifier", "rec_id", "result_id"])
     observations_df = observations_df.filter(pl.col("n") == ykj_n)
     observations_df = observations_df.filter(pl.col("e") == ykj_e)
-    observations_df = observations_df.filter(pl.col("month").is_between(3, 8))
+    observations_df = observations_df.filter(pl.col("month").is_between(4, 7))
+    observations_df = observations_df.filter(pl.col("prediction") >= 0.95)
 
     # Print number of observations
     print(f"Number of observations: {len(observations_df)}")
 
     # Print number of observations per species
-    print(observations_df.group_by("finbif_species").count())
+#    print(observations_df.group_by("finbif_species").count())
 
     # Remove from observations_df those species that are already observed in the square
     observations_df = observations_df.filter(~pl.col("identifier").is_in(already_observed_species_list))
@@ -89,7 +91,7 @@ for i, row in enumerate(squares_df.iter_rows(named=True)):
     print(f"Number of observations after filtering: {len(observations_df)}")
 
     # Print number of observations per species
-    print(observations_df.group_by("finbif_species").count())
+#    print(observations_df.group_by("finbif_species").count())
 
     # Append rows to results file
     if i == 0:
