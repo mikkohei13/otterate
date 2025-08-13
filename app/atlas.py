@@ -1,4 +1,4 @@
-# Script to compare observations to bird atlas results and save interesting observations to a file
+# Script to compare observations to bird atlas results and save observations to a file, if they would be a new species for the square
 
 import polars as pl
 from pathlib import Path
@@ -70,13 +70,14 @@ for i, row in enumerate(squares_df.iter_rows(named=True)):
     observation_data_file = Path("/data/observations_ykj.parquet")
 
     # Note: the Parquet file is very large, so code needs to be optimized for reading only what is needed
-    # Read data of this specific square, and where month is 3...8 (March to August)
-#    observations_df = pl.read_parquet(observation_data_file, columns=["n", "e", "lat", "lon", "date", "time", "month", "prediction", "finbif_species", "identifier", "rec_id", "result_id"])
-    observations_df = pl.read_parquet(observation_data_file, columns=["n", "e", "month", "prediction", "finbif_species", "identifier", "rec_id", "result_id"])
-    observations_df = observations_df.filter(pl.col("n") == ykj_n)
-    observations_df = observations_df.filter(pl.col("e") == ykj_e)
-    observations_df = observations_df.filter(pl.col("month").is_between(4, 7))
-    observations_df = observations_df.filter(pl.col("prediction") >= 0.95)
+    # Use predicate pushdown to filter at read time - much more efficient than reading entire file
+    observations_df = pl.scan_parquet(observation_data_file) \
+        .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id"]) \
+        .filter(pl.col("n") == ykj_n) \
+        .filter(pl.col("e") == ykj_e) \
+        .filter(pl.col("month").is_between(5, 7)) \
+        .filter(pl.col("prediction") >= 0.98) \
+        .collect()
 
     # Print number of observations
     print(f"Number of observations: {len(observations_df)}")
