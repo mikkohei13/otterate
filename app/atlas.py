@@ -12,6 +12,17 @@ total_squares = len(squares_df)
 
 already_observed_values = ["MY.atlasClassEnumB", "MY.atlasClassEnumC", "MY.atlasClassEnumD"]
 
+# Pre-filter the entire dataset once - much faster than scanning 3859 times
+observation_data_file = Path("/data/observations_ykj.parquet")
+print("Loading and filtering observation data...")
+all_observations = pl.scan_parquet(observation_data_file) \
+    .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id"]) \
+    .filter(pl.col("month").is_between(5, 7)) \
+    .filter(pl.col("prediction") >= 0.98) \
+    .collect()
+
+print(f"Loaded {len(all_observations)} total observations")
+
 # Open a file to write results continuously
 results_file = Path("./output/atlas_results.csv")
 
@@ -67,17 +78,9 @@ for i, row in enumerate(squares_df.iter_rows(named=True)):
     'e', Integer, Finnish uniform grid system (ykj) EPSG:2393 row
     '''
 
-    observation_data_file = Path("/data/observations_ykj.parquet")
-
-    # Note: the Parquet file is very large, so code needs to be optimized for reading only what is needed
-    # Use predicate pushdown to filter at read time - much more efficient than reading entire file
-    observations_df = pl.scan_parquet(observation_data_file) \
-        .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id"]) \
-        .filter(pl.col("n") == ykj_n) \
-        .filter(pl.col("e") == ykj_e) \
-        .filter(pl.col("month").is_between(5, 7)) \
-        .filter(pl.col("prediction") >= 0.98) \
-        .collect()
+    # Filter from pre-loaded data instead of scanning file
+    observations_df = all_observations.filter(pl.col("n") == ykj_n) \
+        .filter(pl.col("e") == ykj_e)
 
     # Print number of observations
     print(f"Number of observations: {len(observations_df)}")
