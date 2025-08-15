@@ -6,7 +6,7 @@ from helpers.get_atlas_data import fetch_square_data, get_cached_square_data, re
 import json
 
 # Configuration constants
-DEBUG_LIMIT = 100
+SQUARE_DEBUG_LIMIT = 10000
 OBSERVATION_MONTHS = (5, 7)
 PREDICTION_THRESHOLD = 0.95
 ATLAS_PREDICTION_THRESHOLD = 1.0
@@ -23,9 +23,36 @@ RESULTS_FILE = Path("./output/atlas_results.csv")
 def load_and_filter_observations():
     """Load and pre-filter observation data from parquet file."""
     print("Loading and filtering observation data...")
-    
+
+    '''
+    The Polars dataframe contains bird observations identified by AI. It has the following columns:
+
+    'user_anon', String, identifier of the user who made the recording
+    'date', String, date of the recording (YYYY-MM-DD)
+    'time', String, time of the recording (HH:MM:SS)
+    'rec_type', String, type of the recording: direct, interval or point
+    'point_count_loc', String, location name of the recording (usually empty)
+    'lat', Float64, latitude of the recording
+    'lon', Float64, longitude of the recording
+    'url', String, URL of the recording file
+    'year', Float64, year of the recording
+    'month', Float64, month of the recording
+    'day', Float64, day of the recording
+    'species', String, scientific name of the bird species
+    'prediction', Float64, prediction value between 0 and 1
+    'song_start', Float64, start time of the song in the recording in seconds
+    'rec_id', String, unique identifier of the recording
+    'result_id', String, unique identifier of the result
+    'isseen', Boolean, whether the bird was seen or not, can be empty
+    'isheard', Boolean, whether the bird was heard or not, can be empty
+    'finbif_species', String, scientific name of the bird species from FinBIF
+    'identifier', String, identifier of the bird species from FinBIF
+    'n', Integer, Finnish uniform grid system (ykj) EPSG:2393 column
+    'e', Integer, Finnish uniform grid system (ykj) EPSG:2393 row
+    '''
+
     observations = pl.scan_parquet(OBSERVATION_DATA_FILE) \
-        .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id", "song_start", "isseen", "isheard"]) \
+        .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id", "song_start", "isseen", "isheard", "date"]) \
         .filter(pl.col("month").is_between(*OBSERVATION_MONTHS)) \
         .filter(pl.col("prediction") >= PREDICTION_THRESHOLD) \
         .collect()
@@ -194,7 +221,7 @@ def main():
             square_count += 1
         
         # Check debug limit
-        if square_count >= DEBUG_LIMIT:
+        if square_count >= SQUARE_DEBUG_LIMIT:
             print(f"Debug limit reached, stopping at {square_count} squares")
             break
         
