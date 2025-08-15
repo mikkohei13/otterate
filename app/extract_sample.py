@@ -1,6 +1,11 @@
 import polars as pl
 import os
 
+'''
+This script extracts a sample (head or random) of the data for testing and development.
+'''
+
+
 def extract_sample(input_file, output_file, n_rows=100000):
     """Extract n rows from a CSV file and save to a new file."""
     random_rows = False

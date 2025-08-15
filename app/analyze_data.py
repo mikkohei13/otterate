@@ -1,4 +1,4 @@
-# Loads data to a Pandas dataframe from a parquet file and shows some statistics
+# Loads data from parquet to a Pandas dataframe from a parquet file and shows some statistics
 
 import pandas as pd
 from pathlib import Path
@@ -60,9 +60,14 @@ df = df[
 print(len(df))
 
 # Save number of rows per species to a file
-species_counts_file = Path("/data/output/species_counts_0.9.csv")
+species_counts_file = Path("./output/species_counts_0.9.csv")
 species_counts_file.parent.mkdir(parents=True, exist_ok=True)
 df['finbif_species'].value_counts().to_csv(species_counts_file)
+
+# Create a histogram of the prediction values
+plt.hist(df['prediction'], bins=100)
+plt.savefig("./output/prediction_histogram.png")
+plt.close()
 
 
 

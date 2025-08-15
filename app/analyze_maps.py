@@ -1,4 +1,4 @@
-# Loads data to a Pandas dataframe from a parquet file and shows some statistics
+# Loads data  from Parquet to a Pandas dataframe from a parquet file and creates spatial statistics and maps of the observations
 
 import pandas as pd
 import geopandas as gpd
@@ -15,28 +15,30 @@ input_file = Path("/data/observations.parquet")
 #exit()
 
 '''
-The Polars dataframe contains bird observations identified by AI. It has the following columns:
+The Parquet file and the Polars dataframe contain bird observations identified by AI. They have the following columns:
 
-user_anon', String, identifier of the user who made the recording
-date', String, date of the recording (YYYY-MM-DD)
-time', String, time of the recording (HH:MM:SS)
-rec_type', String, type of the recording: direct, interval or point
-point_count_loc', String, location name of the recording (usually empty)
-lat', Float64, latitude of the recording
-lon', Float64, longitude of the recording
-url', String, URL of the recording file
-year', Float64, year of the recording
-month', Float64, month of the recording
-day', Float64, day of the recording
-species', String, scientific name of the bird species
-prediction', Float64, prediction value between 0 and 1
-song_start', Float64, start time of the song in the recording in seconds
-rec_id', String, unique identifier of the recording
-result_id', String, unique identifier of the result
-isseen', Boolean, whether the bird was seen or not, can be empty
-isheard', Boolean, whether the bird was heard or not, can be empty
-finbif_species', String, scientific name of the bird species from FinBIF
-identifier', String, identifier of the bird species from FinBIF
+'user_anon', String, identifier of the user who made the recording
+'date', String, date of the recording (YYYY-MM-DD)
+'time', String, time of the recording (HH:MM:SS)
+'rec_type', String, type of the recording: direct, interval or point
+'point_count_loc', String, location name of the recording (usually empty)
+'lat', Float64, latitude of the recording
+'lon', Float64, longitude of the recording
+'url', String, URL of the recording file
+'year', Float64, year of the recording
+'month', Float64, month of the recording
+'day', Float64, day of the recording
+'species', String, scientific name of the bird species
+'prediction', Float64, prediction value between 0 and 1
+'song_start', Float64, start time of the song in the recording in seconds
+'rec_id', String, unique identifier of the recording
+'result_id', String, unique identifier of the result
+'isseen', Boolean, whether the bird was seen or not, can be empty
+'isheard', Boolean, whether the bird was heard or not, can be empty
+'finbif_species', String, scientific name of the bird species from FinBIF
+'identifier', String, identifier of the bird species from FinBIF
+'n', Integer, Finnish uniform grid system (ykj) EPSG:2393 column
+'e', Integer, Finnish uniform grid system (ykj) EPSG:2393 row
 '''
 
 # Load Finland borders from local Natural Earth data
@@ -44,7 +46,7 @@ world = gpd.read_file("./ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp
 finland = world[world.NAME == "Finland"]
 
 # Create output directory if it doesn't exist
-output_dir = Path("/data/output")
+output_dir = Path("./output/maps")
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Define Finland boundaries
@@ -58,6 +60,15 @@ species_list = pd.read_parquet(input_file, columns=["finbif_species"])["finbif_s
 
 # Process each species
 for species in species_list:
+    # Create filename from species name (replace spaces and special characters)
+    safe_species_name = re.sub(r'[^a-zA-Z0-9]', '_', species)
+    output_file = output_dir / f"map_{safe_species_name}.png"
+    if output_file.exists():
+        print(f"Skipping {species} because map exists")
+        continue
+
+    print(f"Processing {species}")
+
     # Read only data for current species
     species_df = pd.read_parquet(
         input_file,
@@ -79,6 +90,8 @@ for species in species_list:
     # Skip if no observations for this species
     if len(species_df) == 0:
         continue
+
+    observation_count = len(species_df)
     
     # Remove rows where lat or lon is empty
     species_df = species_df.dropna(subset=["user_anon", "lat", "lon"])
@@ -95,12 +108,10 @@ for species in species_list:
     plt.figure(figsize=(10, 10))
     ax = finland.plot(color='white', edgecolor='black')
     gdf.plot(ax=ax, markersize=2, color='red')
-    plt.title(f"Observations of {species}")
+    plt.title(f"{observation_count} obs of {species}")
     plt.axis('off')
     
-    # Create filename from species name (replace spaces and special characters)
-    safe_species_name = re.sub(r'[^a-zA-Z0-9]', '_', species)
-    output_file = output_dir / f"map_{safe_species_name}.png"
+    # Save map
     plt.savefig(output_file, bbox_inches='tight', dpi=300)
     plt.close('all')  # Close all figures
     

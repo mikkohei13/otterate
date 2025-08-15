@@ -25,7 +25,7 @@ def load_and_filter_observations():
     print("Loading and filtering observation data...")
 
     '''
-    The Polars dataframe contains bird observations identified by AI. It has the following columns:
+    The Parquet file and the Polars dataframe contain bird observations identified by AI. They have the following columns:
 
     'user_anon', String, identifier of the user who made the recording
     'date', String, date of the recording (YYYY-MM-DD)
@@ -52,7 +52,7 @@ def load_and_filter_observations():
     '''
 
     observations = pl.scan_parquet(OBSERVATION_DATA_FILE) \
-        .select(["n", "e", "prediction", "month", "identifier", "rec_id", "result_id", "song_start", "isseen", "isheard", "date"]) \
+        .select(["lat", "lon", "n", "e", "prediction", "month", "identifier", "rec_id", "result_id", "song_start", "isseen", "isheard", "date"]) \
         .filter(pl.col("month").is_between(*OBSERVATION_MONTHS)) \
         .filter(pl.col("prediction") >= PREDICTION_THRESHOLD) \
         .collect()

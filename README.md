@@ -2,7 +2,7 @@
 
 Otterate is a data processing and analysis toolkit designed for cleaning, analyzing, and preparing bird observation data for ingestion into the FinBIF (Finnish Biodiversity Information Facility) Data Bank. The project focuses on processing AI-identified bird recordings and comparing them against existing bird atlas data to identify new or interesting observations.
 
-**⚠️ Note: This project is still a work in progress and may have incomplete features or documentation.**
+**⚠️ Note: This project is still a work in progress.**
 
 ## Features
 
@@ -55,54 +55,29 @@ The system expects data files in specific locations:
 - Output directory: `./app/output/`
 - Cache directory: `./app/cache/`
 
-### Data Upload
+### Data preprocessing
 
-Upload processed data to a database:
+* app/prepare_recording_data.py: Upload processed data to a Parquet file.
+* app/prepare_ykj.py: Add YKJ coordinates to a Parquet file.
 
-```bash
-python app/upload_recordings.py
-```
+### app/analyze_data.py
 
-This script:
-- Sets up database tables if they don't exist
-- Uploads recording data from CSV files
-- Handles duplicate detection and error handling
+Generates statistics of the observation data:
 
-### Data Analysis
-
-The main analysis script processes bird observation data:
-
-```bash
-python app/analyze_data.py
-```
-
-This script:
 - Loads observation data from Parquet files
 - Filters data by prediction confidence (>0.9)
 - Restricts observations to Finnish geographic boundaries
 - Generates species count statistics
 - Saves results to output files
 
-### Atlas Comparison
+### app/atlas.py
 
-Compare observations against bird atlas data:
+Compares observations against bird atlas data:
 
-```bash
-python app/atlas.py
-```
-
-This script:
 - Processes atlas grid squares
 - Fetches existing species data from the atlas API
 - Identifies observations of species not yet recorded in specific squares
 - Saves interesting observations for further review
-
-### Additional Tools
-
-- **`prepare_ykj.py`**: Prepare YKJ coordinate data
-- **`prepare_recording_data.py`**: Prepare recording data for processing
-- **`analyze_maps.py`**: Generate map visualizations
-- **`analyze_months.py`**: Analyze temporal patterns in observations
 
 ## Data Format
 
