@@ -8,6 +8,27 @@ from typing import Dict, Any
 cache_dir = Path("./cache")
 cache_dir.mkdir(exist_ok=True)
 
+def read_bird_species_lookup() -> Dict[str, str]:
+    """Read bird species TSV file and return a lookup dictionary mapping identifiers to Finnish names."""
+    species_file = Path("./data/bird_species.tsv")
+    
+    if not species_file.exists():
+        raise FileNotFoundError(f"Bird species file not found: {species_file}")
+    
+    lookup = {}
+    with open(species_file, "r", encoding="utf-8") as f:
+        # Skip header line
+        next(f)
+        for line in f:
+            line = line.strip()
+            if line:
+                parts = line.split("\t")
+                if len(parts) >= 3:
+                    scientific_name, identifier, finnish_name = parts[:3]
+                    lookup[identifier] = finnish_name
+    
+    return lookup
+
 def fetch_square_data(ykj_n: int, ykj_e: int) -> Dict[str, Any]:
     """Fetch species data for a square from the atlas API."""
     url = f"https://atlas-api.2.rahtiapp.fi/api/v1/grid/{ykj_n}:{ykj_e}/atlas"
@@ -30,4 +51,6 @@ def get_cached_square_data(ykj_n: int, ykj_e: int) -> Dict[str, Any]:
         json.dump(data, f)
     
     time.sleep(0.5)
-    return data 
+    return data
+
+
